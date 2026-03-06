@@ -25,7 +25,7 @@ import { useLocation } from "wouter";
 export default function ClipboardView() {
   const { id } = useParams<{ id: string }>();
   const { meta, loading: metaLoading, error } = useClipboardMeta(id || "");
-  const { messages, loading: messagesLoading, sendMessage } = useMessages(id || "");
+  const { messages, loading: messagesLoading, sendMessage, deleteMessage } = useMessages(id || "");
   const [content, setContent] = useState("");
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -59,7 +59,9 @@ export default function ClipboardView() {
 
   // Auto-scroll on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   }, [messages.length]);
 
   const handleLeave = async () => {
@@ -274,8 +276,8 @@ export default function ClipboardView() {
       </Dialog>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
-        <div className="max-w-4xl mx-auto space-y-6 flex flex-col">
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto space-y-6 flex flex-col min-h-full">
           {messagesLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-white/30" />
@@ -302,10 +304,12 @@ export default function ClipboardView() {
                   message={msg} 
                   onProfileClick={openProfile}
                   isGrouped={!!isGrouped} 
+                  onDelete={deleteMessage}
                 />
               );
             })
           )}
+          <div className="h-[150px] shrink-0" />
           <div ref={bottomRef} />
         </div>
       </div>

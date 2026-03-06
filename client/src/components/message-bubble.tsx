@@ -5,7 +5,7 @@ import { Message } from "@/hooks/use-messages";
 import { useAuthContext } from "@/hooks/use-auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Trash2 } from "lucide-react";
 
 // CodeBlock component with its own copy button
 const CodeBlock = ({ code }: { code: string }) => {
@@ -93,11 +93,13 @@ const formatMessageText = (text: string) => {
 export function MessageBubble({ 
   message, 
   onProfileClick,
-  isGrouped = false
+  isGrouped = false,
+  onDelete
 }: { 
   message: Message, 
   onProfileClick: (uid: string) => void,
-  isGrouped?: boolean
+  isGrouped?: boolean,
+  onDelete?: (id: string) => void
 }) {
   const { user } = useAuthContext();
   const [senderName, setSenderName] = useState<string | null>(null);
@@ -156,25 +158,38 @@ export function MessageBubble({
       )}
       
       <div className="px-1 text-white/90 relative flex items-start gap-2">
-        {isGrouped && (
-          <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity w-10 shrink-0 pt-1 text-right">
-            {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
-          </span>
-        )}
         <div className="flex-1 min-w-0">
           <div className="relative">
             <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
               {formatMessageText(message.content)}
             </p>
             
-            {/* Whole Message Copy Button */}
-            <button 
-              onClick={handleCopyMessage}
-              className="absolute -right-2 top-0 p-2 text-muted-foreground hover:text-white opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0"
-              title="Copy message"
-            >
-              {messageCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
+            {/* Actions & Timestamp */}
+            <div className="absolute -right-2 -top-1 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-1 group-hover:translate-x-0 z-10">
+              {isGrouped && (
+                <span className="text-[10px] text-muted-foreground bg-black/80 px-1.5 py-0.5 rounded backdrop-blur">
+                  {message.timestamp ? new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                </span>
+              )}
+              <div className="flex items-center gap-0.5 bg-[#1a1a1a] shadow-lg rounded p-0.5 border border-white/10">
+                {onDelete && message.senderHash === user?.uid && (
+                  <button 
+                    onClick={() => onDelete(message.id)}
+                    className="p-1 text-muted-foreground hover:text-destructive hover:bg-white/5 rounded transition-colors"
+                    title="Delete message"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button 
+                  onClick={handleCopyMessage}
+                  className="p-1 text-muted-foreground hover:text-white hover:bg-white/5 rounded transition-colors"
+                  title="Copy message"
+                >
+                  {messageCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

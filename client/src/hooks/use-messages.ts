@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, push, set, serverTimestamp, off } from 'firebase/database';
+import { ref, onValue, push, set, serverTimestamp, off, remove } from 'firebase/database';
 import { rtdb, isFirebaseConfigured } from '@/lib/firebase';
 import { useAuthContext } from './use-auth';
 
@@ -58,5 +58,11 @@ export function useMessages(clipboardId: string) {
     });
   };
 
-  return { messages, loading, sendMessage };
+  const deleteMessage = async (messageId: string) => {
+    if (!isFirebaseConfigured || !user || !clipboardId) return;
+    const msgRef = ref(rtdb, `clipboards/${clipboardId}/messages/${messageId}`);
+    await remove(msgRef);
+  };
+
+  return { messages, loading, sendMessage, deleteMessage };
 }

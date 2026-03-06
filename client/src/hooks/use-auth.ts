@@ -101,26 +101,13 @@ export function useAuthInit(): AuthContextType {
     const password = hash; // Using the hash as the password
 
     try {
-      // 1. Try to sign in first
-      try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        return; // Success
-      } catch (signInErr: any) {
-        // If user doesn't exist, create it
-        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
-          // Double check Firestore just in case Auth and Firestore are out of sync 
-          // (though with deterministic emails this is unlikely unless someone else used the name)
-          const userCred = await createUserWithEmailAndPassword(auth, email, password);
-          await setDoc(doc(db, 'users', userCred.user.uid), {
-            username: formattedUsername,
-            usernameHash: hash,
-            createdAt: new Date().toISOString(),
-            joinedBoards: []
-          });
-        } else {
-          throw signInErr;
-        }
-      }
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', userCred.user.uid), {
+        username: formattedUsername,
+        usernameHash: hash,
+        createdAt: new Date().toISOString(),
+        joinedBoards: []
+      });
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
         throw new Error("Username is already taken");
