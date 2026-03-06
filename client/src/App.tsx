@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -25,6 +26,13 @@ function Router() {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const authState = useAuthInit();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!authState.loading && !authState.user && location !== "/") {
+      setLocation("/");
+    }
+  }, [authState.loading, authState.user, location, setLocation]);
 
   if (authState.loading) {
     return (

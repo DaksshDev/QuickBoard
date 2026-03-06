@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, ChevronRight, Hash, Clock } from "lucide-react";
+import { Plus, Search, ChevronRight, Hash, Clock, Github } from "lucide-react";
 import { Nav } from "@/components/nav";
 import { CreateBoardModal } from "@/components/create-board-modal";
 import { useClipboards, useJoinedBoards, ClipboardMeta } from "@/hooks/use-clipboards";
@@ -13,8 +13,10 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [directId, setDirectId] = useState("");
   const [results, setResults] = useState<ClipboardMeta[]>([]);
+  const [verifyingBoard, setVerifyingBoard] = useState<ClipboardMeta | null>(null);
+  const [verificationId, setVerificationId] = useState("");
   const { searchClipboards, joinBoard } = useClipboards();
-  const { boards: joinedBoards, loading: joinedLoading } = useJoinedBoards();
+  const { boards: joinedBoards, loading: joinedLoading, refresh: refreshJoined } = useJoinedBoards();
   const [, setLocation] = useLocation();
 
   // Debounced search
@@ -39,17 +41,80 @@ export default function Dashboard() {
     }
   };
 
-  const handleJoinBoard = async (id: string) => {
-    await joinBoard(id);
-    setLocation(`/c/${id}`);
+  const handleJoinBoard = async (board: ClipboardMeta) => {
+    setVerifyingBoard(board);
+    setVerificationId("");
+  };
+
+  const confirmJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyingBoard) return;
+    
+    if (verificationId.toUpperCase() === verifyingBoard.id.toUpperCase()) {
+      await joinBoard(verifyingBoard.id);
+      setLocation(`/c/${verifyingBoard.id}`);
+      setVerifyingBoard(null);
+    } else {
+      alert("Incorrect Board ID");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pt-20">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Nav />
-      <CreateBoardModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      <CreateBoardModal 
+        open={isModalOpen} 
+        onOpenChange={setIsModalOpen} 
+        onSuccess={refreshJoined}
+      />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+      {/* Join Verification Modal */}
+      <AnimatePresence>
+        {verifyingBoard && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 shadow-2xl"
+            >
+              <h3 className="text-xl font-bold mb-2">Join {verifyingBoard.name}</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Enter the 4-character Board ID to confirm access.
+              </p>
+              <form onSubmit={confirmJoin} className="space-y-4">
+                <Input 
+                  value={verificationId}
+                  onChange={(e) => setVerificationId(e.target.value.toUpperCase())}
+                  placeholder="ABCD"
+                  maxLength={4}
+                  autoFocus
+                  className="h-12 font-mono text-center text-xl uppercase tracking-[0.5em] bg-black border-white/10 focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => setVerifyingBoard(null)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={verificationId.length !== 4}
+                    className="flex-1 bg-white text-black hover:bg-white/90"
+                  >
+                    Verify & Join
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-12 flex-1 pt-24">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -127,7 +192,7 @@ export default function Dashboard() {
                         <div className="flex justify-between items-center">
                           <div>
                             <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">{board.name}</h3>
-                            <p className="text-xs text-muted-foreground mt-1">by {board.createdBy}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Hash: {board.createdByHash.substring(0, 8)}...</p>
                           </div>
                           <div className="font-mono text-sm text-white/50 bg-white/5 px-2 py-1 rounded">
                             {board.id}
@@ -176,16 +241,16 @@ export default function Dashboard() {
                     {results.map((board) => (
                       <div 
                         key={board.id} 
-                        onClick={() => handleJoinBoard(board.id)}
+                        onClick={() => handleJoinBoard(board)}
                         className="group block p-4 rounded-xl border border-white/5 bg-[#0a0a0a] hover:bg-white/[0.03] hover:border-white/20 transition-all cursor-pointer"
                       >
                         <div className="flex justify-between items-center">
                           <div>
                             <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">{board.name}</h3>
-                            <p className="text-xs text-muted-foreground mt-1">by {board.createdBy}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Hash: {board.createdByHash.substring(0, 8)}...</p>
                           </div>
-                          <div className="font-mono text-sm text-white/50 bg-white/5 px-2 py-1 rounded">
-                            {board.id}
+                          <div className="text-white/10 group-hover:text-white/30 transition-colors">
+                            <ChevronRight className="w-5 h-5" />
                           </div>
                         </div>
                       </div>
@@ -214,6 +279,25 @@ export default function Dashboard() {
           </motion.div>
         </div>
       </main>
+
+      <footer className="mt-auto py-12 border-t border-white/5 bg-black/20">
+        <div className="max-w-3xl mx-auto px-4 flex flex-col items-center gap-6 text-center">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground/50">By DaksshDev</p>
+            <p className="text-xs text-muted-foreground/30">QuickBoard is Open Source</p>
+          </div>
+          <a 
+            href="https://github.com/DaksshDev/QuickBoard" 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <Button className="bg-white text-black hover:bg-white/90 font-bold h-10 px-5 rounded-lg">
+              <Github className="w-4 h-4 mr-2" />
+              View Source
+            </Button>
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

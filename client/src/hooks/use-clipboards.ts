@@ -7,7 +7,7 @@ import { useAuthContext } from './use-auth';
 export interface ClipboardMeta {
   id: string;
   name: string;
-  createdBy: string;
+  createdByHash: string; // Using UID as the stable "hash"
   createdAt: number;
 }
 
@@ -23,9 +23,21 @@ export function useClipboards() {
     });
   };
 
+  const leaveBoard = async (id: string) => {
+    if (!isFirebaseConfigured || !user) return;
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      const current = snap.data().joinedBoards || [];
+      await updateDoc(userRef, {
+        joinedBoards: current.filter((b: string) => b !== id.toUpperCase())
+      });
+    }
+  };
+
   const createClipboard = async (name: string, customId?: string): Promise<string> => {
     if (!isFirebaseConfigured || !user) throw new Error("Not authenticated or configured");
-    
+
     setIsCreating(true);
     try {
       // Generate ID if not provided: 4 random alphanumeric uppercase chars
@@ -34,23 +46,26 @@ export function useClipboards() {
         id = Math.random().toString(36).substring(2, 6).toUpperCase();
       }
 
-      // Check if exists in Firestore to prevent overwrite
       const docRef = doc(db, 'clipboards', id);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        throw new Error("Clipboard ID already exists");
-      }
-
       const timestamp = Date.now();
       const meta = {
         name,
-        createdBy: user.username,
-        createdByHash: user.usernameHash,
+        createdByHash: user.uid,
         createdAt: timestamp,
       };
 
-      // 1. Store metadata in Firestore (for easy search)
-      await setDoc(docRef, meta);
+      try {
+        // 1. Store metadata in Firestore
+        // Use setDoc but we need to ensure we don't overwrite blindly if we want 4-char IDs to be unique
+        // However, with custom IDs, users might want to reclaim them. 
+        // For now, let's keep it simple: creation is allowed by rules if not exists.
+        await setDoc(docRef, meta);
+      } catch (err: any) {
+        if (err.code === 'permission-denied') {
+          throw new Error("Clipboard ID already exists or is unavailable");
+        }
+        throw err;
+      }
 
       // 2. Store base metadata in RTDB
       await set(ref(rtdb, `clipboards/${id}/meta`), meta);
@@ -66,7 +81,7 @@ export function useClipboards() {
 
   const searchClipboards = async (searchQuery: string): Promise<ClipboardMeta[]> => {
     if (!isFirebaseConfigured || !searchQuery.trim()) return [];
-    
+
     const term = searchQuery.trim();
     // Simple prefix search trick in Firestore
     const q = query(
@@ -80,7 +95,7 @@ export function useClipboards() {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClipboardMeta));
   };
 
-  return { createClipboard, searchClipboards, joinBoard, isCreating };
+  return { createClipboard, searchClipboards, joinBoard, leaveBoard, isCreating };
 }
 
 export function useClipboardMeta(id: string) {
@@ -98,7 +113,7 @@ export function useClipboardMeta(id: string) {
         // We can fetch from RTDB directly since we are on the clipboard page
         const metaRef = ref(rtdb, `clipboards/${id}/meta`);
         const snapshot = await get(metaRef);
-        
+
         if (snapshot.exists() && mounted) {
           setMeta({ id, ...snapshot.val() });
           setError(null);
@@ -125,31 +140,32 @@ export function useJoinedBoards() {
   const [boards, setBoards] = useState<ClipboardMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchBoards = async () => {
     if (!user?.joinedBoards?.length) {
       setBoards([]);
       setLoading(false);
       return;
     }
 
-    const fetchBoards = async () => {
-      try {
-        const boardDocs = await Promise.all(
-          user.joinedBoards!.map(id => getDoc(doc(db, 'clipboards', id)))
-        );
-        const fetchedBoards = boardDocs
-          .filter(d => d.exists())
-          .map(d => ({ id: d.id, ...d.data() } as ClipboardMeta));
-        setBoards(fetchedBoards);
-      } catch (err) {
-        console.error("Error fetching joined boards:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      setLoading(true);
+      const boardDocs = await Promise.all(
+        user.joinedBoards!.map(id => getDoc(doc(db, 'clipboards', id)))
+      );
+      const fetchedBoards = boardDocs
+        .filter(d => d.exists())
+        .map(d => ({ id: d.id, ...d.data() } as ClipboardMeta));
+      setBoards(fetchedBoards);
+    } catch (err) {
+      console.error("Error fetching joined boards:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchBoards();
   }, [user?.joinedBoards]);
 
-  return { boards, loading };
+  return { boards, loading, refresh: fetchBoards };
 }

@@ -99,9 +99,17 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-8">
-          By entering, you will either create a new identity or log into an existing one via cryptographic hashing.
-        </p>
+        <div className="mt-12 flex flex-col items-center gap-2">
+          <p className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground/60">By DaksshDev</p>
+          <a 
+            href="https://github.com/DaksshDev/QuickBoard" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[10px] text-muted-foreground/40 hover:text-white transition-colors underline underline-offset-4"
+          >
+            QuickBoard is Open Source
+          </a>
+        </div>
       </motion.div>
     </div>
   );

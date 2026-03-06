@@ -8,6 +8,19 @@ import { Loader2, Send, AlertTriangle, Hash, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { LogOut, Users, BookOpen, ExternalLink } from "lucide-react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuthContext } from "@/hooks/use-auth";
+import { useClipboards } from "@/hooks/use-clipboards";
+import { useLocation } from "wouter";
 
 export default function ClipboardView() {
   const { id } = useParams<{ id: string }>();
@@ -16,12 +29,59 @@ export default function ClipboardView() {
   const [content, setContent] = useState("");
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthContext();
+  const { leaveBoard } = useClipboards();
+  const [, setLocation] = useLocation();
   const bottomRef = useRef<HTMLDivElement>(null);
   
+  const [showMembers, setShowMembers] = useState(false);
+  const [members, setMembers] = useState<{uid: string, username: string}[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<{username: string, ownedBoards: string[]} | null>(null);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+
   // Auto-scroll on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  const handleLeave = async () => {
+    await leaveBoard(id || "");
+    toast({ title: "Left group", description: `You have left ${meta?.name}` });
+    setLocation("/");
+  };
+
+  const fetchMembers = async () => {
+    if (!id) return;
+    const q = query(collection(db, 'users'), where('joinedBoards', 'array-contains', id.toUpperCase()));
+    const snap = await getDocs(q);
+    const m = snap.docs.map(d => ({ uid: d.id, username: d.data().username }));
+    setMembers(m);
+    setShowMembers(true);
+  };
+
+  const openProfile = async (uid: string) => {
+    if (uid === 'deleted_user') return;
+    setSelectedProfile(uid);
+    setProfileData(null);
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        // Fetch boards created by this user
+        const q = query(collection(db, 'clipboards'), where('createdByHash', '==', uid));
+        const boardsSnap = await getDocs(q);
+        const owned = boardsSnap.docs.map(d => d.data().name);
+        setProfileData({ username: data.username, ownedBoards: owned });
+      } else {
+        setProfileData({ username: '[DELETED USER]', ownedBoards: [] });
+      }
+    } catch (err) {
+      console.error("Error fetching profile", err);
+      setProfileData({ username: '[DELETED USER]', ownedBoards: [] });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,18 +135,126 @@ export default function ClipboardView() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white/90">{meta.name}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Created by {meta.createdBy}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Owner: {meta.createdByHash === 'deleted_user' ? '[DELETED USER]' : `Hash ${meta.createdByHash.substring(0, 8)}...`}
+            </p>
           </div>
-          <button 
-            onClick={copyId}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors group"
-          >
-            <Hash className="w-4 h-4 text-muted-foreground" />
-            <span className="font-mono font-bold tracking-widest">{id}</span>
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
-          </button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={fetchMembers}
+              className="text-muted-foreground hover:text-white hover:bg-white/10"
+            >
+              <Users className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLeave}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="w-5 h-5" />
+            </Button>
+            <button 
+              onClick={copyId}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors group"
+            >
+              <Hash className="w-4 h-4 text-muted-foreground" />
+              <span className="font-mono font-bold tracking-widest">{id}</span>
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+            </button>
+          </div>
         </div>
       </div>
+
+      <Dialog open={showMembers} onOpenChange={setShowMembers}>
+        <DialogContent className="bg-[#0a0a0a] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>Group Members</DialogTitle>
+            <DialogDescription className="text-muted-foreground">List of users who joined this clipboard.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-4 max-h-[40vh] overflow-y-auto pr-2">
+            {members.map(m => (
+              <div 
+                key={m.uid} 
+                onClick={() => { setShowMembers(false); openProfile(m.uid); }}
+                className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold text-xs uppercase">
+                    {m.username[0]}
+                  </div>
+                  <div>
+                    <div className="font-medium">{m.username}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{m.uid.substring(0, 10)}...</div>
+                  </div>
+                </div>
+                <ExternalLink className="w-4 h-4 text-white/20" />
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedProfile} onOpenChange={(open) => !open && setSelectedProfile(null)}>
+        <DialogContent className="bg-[#0a0a0a] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+          </DialogHeader>
+          {!profileData ? (
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
+          ) : (
+            <div className="space-y-6 pt-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center text-3xl font-bold mb-4">
+                    {profileData.username === '[DELETED USER]' ? '?' : profileData.username[0].toUpperCase()}
+                  </div>
+                  <h2 className="text-2xl font-bold">{profileData.username}</h2>
+                  <p className="font-mono text-xs text-muted-foreground mt-1">
+                    {profileData.username === '[DELETED USER]' ? '...' : selectedProfile}
+                  </p>
+                </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Owned Clipboards
+                </h3>
+                <div className="grid gap-2">
+                  {profileData.ownedBoards.length > 0 ? (
+                    profileData.ownedBoards.map((b, i) => (
+                      <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/5">
+                        {b}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic px-1">This user hasn't created any boards yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isLeaveModalOpen} onOpenChange={setIsLeaveModalOpen}>
+        <DialogContent className="bg-[#0a0a0a] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>Leave Clipboard?</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              You won't see "{meta.name}" in your recent boards anymore. You'll need the Board ID to join again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end mt-4">
+            <Button variant="ghost" onClick={() => setIsLeaveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleLeave}>
+              Leave Board
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-32">
@@ -104,9 +272,22 @@ export default function ClipboardView() {
               <p className="text-sm mt-1 opacity-60">Send a message to start sharing.</p>
             </div>
           ) : (
-            messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))
+            messages.map((msg, index) => {
+              const prevMsg = index > 0 ? messages[index - 1] : null;
+              const isGrouped = prevMsg && 
+                prevMsg.senderHash === msg.senderHash && 
+                msg.timestamp && prevMsg.timestamp &&
+                (msg.timestamp - prevMsg.timestamp < 300000); // 5 mins
+
+              return (
+                <MessageBubble 
+                  key={msg.id} 
+                  message={msg} 
+                  onProfileClick={openProfile}
+                  isGrouped={!!isGrouped} 
+                />
+              );
+            })
           )}
           <div ref={bottomRef} />
         </div>

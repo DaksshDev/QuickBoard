@@ -4,13 +4,14 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getDatabase, Database } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBEn9PoxTarTr6DcV4VtlMfbXKXPU9Ru0I",
+  authDomain: "quickboard-b8c64.firebaseapp.com",
+  databaseURL: "https://quickboard-b8c64-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "quickboard-b8c64",
+  storageBucket: "quickboard-b8c64.firebasestorage.app",
+  messagingSenderId: "529109908558",
+  appId: "1:529109908558:web:607348bfe7454d7ec7571f",
+  measurementId: "G-229D2X07D1"
 };
 
 export const isFirebaseConfigured = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined';

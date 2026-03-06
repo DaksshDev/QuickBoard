@@ -6,9 +6,8 @@ import { useAuthContext } from './use-auth';
 export interface Message {
   id: string;
   content: string;
-  username: string;
-  usernameHash: string;
-  createdAt: number;
+  senderHash: string;
+  timestamp: number;
 }
 
 export function useMessages(clipboardId: string) {
@@ -23,14 +22,14 @@ export function useMessages(clipboardId: string) {
     }
 
     const messagesRef = ref(rtdb, `clipboards/${clipboardId}/messages`);
-    
+
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         const messageList = Object.entries(data).map(([id, val]: [string, any]) => ({
           id,
           ...val
-        })).sort((a, b) => a.createdAt - b.createdAt);
+        })).sort((a, b) => a.timestamp - b.timestamp);
         setMessages(messageList);
       } else {
         setMessages([]);
@@ -51,12 +50,11 @@ export function useMessages(clipboardId: string) {
 
     const messagesRef = ref(rtdb, `clipboards/${clipboardId}/messages`);
     const newMsgRef = push(messagesRef);
-    
+
     await set(newMsgRef, {
       content: content.trim(),
-      username: user.username,
-      usernameHash: user.usernameHash,
-      createdAt: serverTimestamp()
+      senderHash: user.uid,
+      timestamp: serverTimestamp()
     });
   };
 

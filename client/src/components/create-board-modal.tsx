@@ -11,9 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function CreateBoardModal({ open, onOpenChange }: Props) {
+export function CreateBoardModal({ open, onOpenChange, onSuccess }: Props) {
   const [name, setName] = useState("");
   const [customId, setCustomId] = useState("");
   const { createClipboard, isCreating } = useClipboards();
@@ -37,6 +38,7 @@ export function CreateBoardModal({ open, onOpenChange }: Props) {
       onOpenChange(false);
       setName("");
       setCustomId("");
+      if (onSuccess) onSuccess();
       setLocation(`/c/${id}`);
     } catch (err: any) {
       toast({

@@ -43,12 +43,6 @@ export function Nav() {
           >
             <Settings className="w-5 h-5" />
           </Link>
-          <button 
-            onClick={logout}
-            className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </nav>
