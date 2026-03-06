@@ -1,0 +1,29 @@
+// THIS FILE IS VERY IMPORTANT
+//NOTE: after pasting your firebase config, rename this file to "firebase.ts"
+
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getDatabase, Database } from "firebase/database";
+
+const firebaseConfig = {
+  //paste your firebase config here
+};
+
+export const isFirebaseConfigured = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined';
+
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let rtdb: Database;
+
+if (isFirebaseConfigured) {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  db = getFirestore(app);
+  rtdb = getDatabase(app);
+} else {
+  console.warn("Firebase configuration is missing. Please set VITE_FIREBASE_* environment variables.");
+}
+
+export { app, auth, db, rtdb };

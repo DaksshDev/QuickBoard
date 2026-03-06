@@ -163,25 +163,41 @@ export function useAuthInit(): AuthContextType {
       if (deleteClipboards) {
         // Delete all owned clipboards
         const batch = writeBatch(db);
+        const rtdbDeletions: Promise<void>[] = [];
+
         for (const boardDoc of ownedClipboards.docs) {
           const boardId = boardDoc.id;
-          // Delete from Firestore
           batch.delete(boardDoc.ref);
-          // Delete from RTDB
-          await remove(ref(rtdb, `clipboards/${boardId}`));
+          rtdbDeletions.push(remove(ref(rtdb, `clipboards/${boardId}`)));
         }
+
+        // Wait for Firestore batch
         await batch.commit();
+        // Robust RTDB cleanup (don't let one failure block account deletion)
+        const results = await Promise.allSettled(rtdbDeletions);
+        results.forEach((res, i) => {
+          if (res.status === 'rejected') {
+            console.warn(`Failed to delete RTDB clipboard ${ownedClipboards.docs[i].id}:`, res.reason);
+          }
+        });
       } else {
         // Sanitize owner in owned clipboards
         const batch = writeBatch(db);
+        const rtdbUpdates: Promise<void>[] = [];
+
         for (const boardDoc of ownedClipboards.docs) {
           const boardId = boardDoc.id;
-          // Update Firestore
           batch.update(boardDoc.ref, { createdByHash: 'deleted_user' });
-          // Update RTDB
-          await update(ref(rtdb, `clipboards/${boardId}/meta`), { createdByHash: 'deleted_user' });
+          rtdbUpdates.push(update(ref(rtdb, `clipboards/${boardId}/meta`), { createdByHash: 'deleted_user' }));
         }
+
         await batch.commit();
+        const results = await Promise.allSettled(rtdbUpdates);
+        results.forEach((res, i) => {
+          if (res.status === 'rejected') {
+            console.warn(`Failed to sanitize RTDB clipboard ${ownedClipboards.docs[i].id}:`, res.reason);
+          }
+        });
       }
 
       // 2. Delete Firestore user document

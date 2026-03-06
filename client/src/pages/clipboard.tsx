@@ -4,7 +4,7 @@ import { Nav } from "@/components/nav";
 import { useClipboardMeta } from "@/hooks/use-clipboards";
 import { useMessages } from "@/hooks/use-messages";
 import { MessageBubble } from "@/components/message-bubble";
-import { Loader2, Send, AlertTriangle, Hash, Copy, Check } from "lucide-react";
+import { Loader2, Send, AlertTriangle, Hash, Copy, Check, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,23 @@ export default function ClipboardView() {
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<{username: string, ownedBoards: string[]} | null>(null);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const wrapSelectionInCode = () => {
+    if (!textareaRef.current) return;
+    const { selectionStart, selectionEnd } = textareaRef.current;
+    const selectedText = content.substring(selectionStart, selectionEnd);
+    const newContent = 
+      content.substring(0, selectionStart) + 
+      "```\n" + selectedText + "\n```" + 
+      content.substring(selectionEnd);
+    
+    setContent(newContent);
+    // Refocus and set selection after state update (using a small timeout or just relying on focus)
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  };
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -296,11 +313,26 @@ export default function ClipboardView() {
       {/* Input Area */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent pt-12 pointer-events-none">
         <div className="max-w-4xl mx-auto relative pointer-events-auto">
+          {/* Toolbar */}
+          <div className="flex gap-1 mb-2 px-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={wrapSelectionInCode}
+              title="Wrap selection in code block"
+              className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10"
+            >
+              <Code className="w-4 h-4" />
+            </Button>
+          </div>
+          
           <form 
             onSubmit={handleSubmit}
             className="p-1.5 bg-[#111] border border-white/10 rounded-2xl flex items-end gap-2 vercel-shadow backdrop-blur-xl"
           >
             <Textarea
+              ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={(e) => {

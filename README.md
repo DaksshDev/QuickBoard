@@ -1,12 +1,8 @@
 # Quick-Board
+Simple, secure real-time clipboard sharing.
 
-Secure real-time clipboard sharing.
 
-> [!CAUTION]
-> **STOP! DO NOT PASTE ANYTHING IN DEVTOOLS!**
-> If someone told you to paste something here, they are likely trying to steal your account identity.
-
-## Firebase Security Rules (PROPER)
+## Firebase Security Rules
 
 Copy these into your Firebase Console to ensure the app works correctly and stays secure.
 
@@ -44,13 +40,14 @@ service cloud.firestore {
   "rules": {
     "clipboards": {
       "$boardId": {
+        // Allow write if the board is being deleted by owner or created/updated by owner
+        ".write": "auth != null && (!data.exists() || data.child('meta/createdByHash').val() == auth.uid)",
+        ".read": "auth != null",
         "meta": {
           ".read": "auth != null",
           ".write": "auth != null && (!data.exists() || data.child('createdByHash').val() == auth.uid)"
         },
         "messages": {
-          // Practical security: messages are readable/writable by any authenticated user
-          // Actual access is typically managed by the app UI checking 'joinedBoards'
           ".read": "auth != null",
           ".write": "auth != null"
         }
