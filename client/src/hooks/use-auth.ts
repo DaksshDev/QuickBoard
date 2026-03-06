@@ -14,6 +14,7 @@ export interface QuickBoardUser {
   uid: string;
   username: string;
   usernameHash: string;
+  joinedBoards?: string[];
 }
 
 // Helper to generate SHA-256 hash natively

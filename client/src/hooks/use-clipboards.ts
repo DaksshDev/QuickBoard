@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, limit, arrayUnion, updateDoc } from 'firebase/firestore';
 import { ref, set, get } from 'firebase/database';
 import { db, rtdb, isFirebaseConfigured } from '@/lib/firebase';
 import { useAuthContext } from './use-auth';
@@ -14,6 +14,14 @@ export interface ClipboardMeta {
 export function useClipboards() {
   const { user } = useAuthContext();
   const [isCreating, setIsCreating] = useState(false);
+
+  const joinBoard = async (id: string) => {
+    if (!isFirebaseConfigured || !user) return;
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, {
+      joinedBoards: arrayUnion(id.toUpperCase())
+    });
+  };
 
   const createClipboard = async (name: string, customId?: string): Promise<string> => {
     if (!isFirebaseConfigured || !user) throw new Error("Not authenticated or configured");
@@ -47,6 +55,9 @@ export function useClipboards() {
       // 2. Store base metadata in RTDB
       await set(ref(rtdb, `clipboards/${id}/meta`), meta);
 
+      // 3. Add to user's joined boards
+      await joinBoard(id);
+
       return id;
     } finally {
       setIsCreating(false);
@@ -69,7 +80,7 @@ export function useClipboards() {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClipboardMeta));
   };
 
-  return { createClipboard, searchClipboards, isCreating };
+  return { createClipboard, searchClipboards, joinBoard, isCreating };
 }
 
 export function useClipboardMeta(id: string) {
@@ -107,4 +118,38 @@ export function useClipboardMeta(id: string) {
   }, [id]);
 
   return { meta, loading, error };
+}
+
+export function useJoinedBoards() {
+  const { user } = useAuthContext();
+  const [boards, setBoards] = useState<ClipboardMeta[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.joinedBoards?.length) {
+      setBoards([]);
+      setLoading(false);
+      return;
+    }
+
+    const fetchBoards = async () => {
+      try {
+        const boardDocs = await Promise.all(
+          user.joinedBoards!.map(id => getDoc(doc(db, 'clipboards', id)))
+        );
+        const fetchedBoards = boardDocs
+          .filter(d => d.exists())
+          .map(d => ({ id: d.id, ...d.data() } as ClipboardMeta));
+        setBoards(fetchedBoards);
+      } catch (err) {
+        console.error("Error fetching joined boards:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoards();
+  }, [user?.joinedBoards]);
+
+  return { boards, loading };
 }

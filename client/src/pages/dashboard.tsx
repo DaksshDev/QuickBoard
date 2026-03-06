@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, ChevronRight, Hash } from "lucide-react";
+import { Plus, Search, ChevronRight, Hash, Clock } from "lucide-react";
 import { Nav } from "@/components/nav";
 import { CreateBoardModal } from "@/components/create-board-modal";
-import { useClipboards, ClipboardMeta } from "@/hooks/use-clipboards";
+import { useClipboards, useJoinedBoards, ClipboardMeta } from "@/hooks/use-clipboards";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [directId, setDirectId] = useState("");
   const [results, setResults] = useState<ClipboardMeta[]>([]);
-  const { searchClipboards } = useClipboards();
+  const { searchClipboards, joinBoard } = useClipboards();
+  const { boards: joinedBoards, loading: joinedLoading } = useJoinedBoards();
   const [, setLocation] = useLocation();
 
   // Debounced search
@@ -29,11 +30,18 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleJoinDirect = (e: React.FormEvent) => {
+  const handleJoinDirect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (directId.trim().length === 4) {
-      setLocation(`/c/${directId.trim().toUpperCase()}`);
+    const id = directId.trim().toUpperCase();
+    if (id.length === 4) {
+      await joinBoard(id);
+      setLocation(`/c/${id}`);
     }
+  };
+
+  const handleJoinBoard = async (id: string) => {
+    await joinBoard(id);
+    setLocation(`/c/${id}`);
   };
 
   return (
@@ -62,40 +70,78 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Quick Join Column */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="space-y-4"
-          >
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              Join by ID
-            </h2>
-            <div className="p-1 vercel-shadow rounded-2xl bg-black/50">
-              <div className="p-6 rounded-xl bg-[#0a0a0a] border border-white/5 space-y-4">
-                <p className="text-sm text-white/70">
-                  Have a 4-character code? Enter it below to join directly.
-                </p>
-                <form onSubmit={handleJoinDirect} className="flex gap-2">
-                  <Input 
-                    value={directId}
-                    onChange={(e) => setDirectId(e.target.value.toUpperCase())}
-                    placeholder="ABCD"
-                    maxLength={4}
-                    className="h-12 font-mono text-center text-xl uppercase tracking-[0.5em] bg-black border-white/10 focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white"
-                  />
-                  <Button 
-                    type="submit"
-                    disabled={directId.trim().length !== 4}
-                    className="h-12 w-12 shrink-0 p-0 bg-white text-black hover:bg-white/90"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </Button>
-                </form>
+          <div className="space-y-8">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="space-y-4"
+            >
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Hash className="w-4 h-4" />
+                Join by ID
+              </h2>
+              <div className="p-1 vercel-shadow rounded-2xl bg-black/50">
+                <div className="p-6 rounded-xl bg-[#0a0a0a] border border-white/5 space-y-4">
+                  <p className="text-sm text-white/70">
+                    Have a 4-character code? Enter it below to join directly.
+                  </p>
+                  <form onSubmit={handleJoinDirect} className="flex gap-2">
+                    <Input 
+                      value={directId}
+                      onChange={(e) => setDirectId(e.target.value.toUpperCase())}
+                      placeholder="ABCD"
+                      maxLength={4}
+                      className="h-12 font-mono text-center text-xl uppercase tracking-[0.5em] bg-black border-white/10 focus-visible:ring-1 focus-visible:ring-white focus-visible:border-white"
+                    />
+                    <Button 
+                      type="submit"
+                      disabled={directId.trim().length !== 4}
+                      className="h-12 w-12 shrink-0 p-0 bg-white text-black hover:bg-white/90"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </Button>
+                  </form>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+
+            {/* Joined Boards */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="space-y-4"
+            >
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Recent Boards
+              </h2>
+              <div className="space-y-2">
+                {joinedLoading ? (
+                  <div className="text-center py-4 text-muted-foreground animate-pulse">Loading...</div>
+                ) : joinedBoards.length > 0 ? (
+                  joinedBoards.map((board) => (
+                    <Link key={board.id} href={`/c/${board.id}`}>
+                      <div className="group block p-4 rounded-xl border border-white/5 bg-[#0a0a0a] hover:bg-white/[0.03] hover:border-white/20 transition-all cursor-pointer">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">{board.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">by {board.createdBy}</p>
+                          </div>
+                          <div className="font-mono text-sm text-white/50 bg-white/5 px-2 py-1 rounded">
+                            {board.id}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground px-2 italic">No boards joined yet.</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
 
           {/* Search Column */}
           <motion.div 
@@ -128,19 +174,21 @@ export default function Dashboard() {
                     className="space-y-2"
                   >
                     {results.map((board) => (
-                      <Link key={board.id} href={`/c/${board.id}`}>
-                        <div className="group block p-4 rounded-xl border border-white/5 bg-[#0a0a0a] hover:bg-white/[0.03] hover:border-white/20 transition-all cursor-pointer">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">{board.name}</h3>
-                              <p className="text-xs text-muted-foreground mt-1">by {board.createdBy}</p>
-                            </div>
-                            <div className="font-mono text-sm text-white/50 bg-white/5 px-2 py-1 rounded">
-                              {board.id}
-                            </div>
+                      <div 
+                        key={board.id} 
+                        onClick={() => handleJoinBoard(board.id)}
+                        className="group block p-4 rounded-xl border border-white/5 bg-[#0a0a0a] hover:bg-white/[0.03] hover:border-white/20 transition-all cursor-pointer"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="font-semibold text-white/90 group-hover:text-white transition-colors">{board.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">by {board.createdBy}</p>
+                          </div>
+                          <div className="font-mono text-sm text-white/50 bg-white/5 px-2 py-1 rounded">
+                            {board.id}
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </motion.div>
                 ) : searchQuery.length >= 2 ? (

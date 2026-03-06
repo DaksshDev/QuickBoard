@@ -34,28 +34,22 @@ export function MessageBubble({ message }: { message: Message }) {
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className={`flex flex-col max-w-[85%] sm:max-w-[75%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
+      className="flex flex-col w-full group py-1"
     >
-      <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-        <span className="text-xs font-semibold text-white/80">
-          {isMe ? 'You' : message.username}
+      <div className="flex items-center gap-2 px-1 mb-1">
+        <span className="text-xs font-bold text-white/90">
+          {message.username}
         </span>
-        <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
+        <span className="text-[10px] font-mono text-muted-foreground px-1 py-0.5 rounded bg-white/5 border border-white/5">
           {message.usernameHash.substring(0, 6)}
         </span>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           {message.createdAt ? formatDistanceToNow(message.createdAt, { addSuffix: true }) : 'just now'}
         </span>
       </div>
       
-      <div 
-        className={`px-4 py-3 rounded-2xl ${
-          isMe 
-            ? 'bg-white text-black rounded-tr-sm' 
-            : 'bg-[#1A1A1A] border border-white/5 text-white rounded-tl-sm'
-        }`}
-      >
-        <p className="text-[15px] leading-relaxed">
+      <div className="px-1 text-white/90">
+        <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
           {formatMessageText(message.content)}
         </p>
       </div>
