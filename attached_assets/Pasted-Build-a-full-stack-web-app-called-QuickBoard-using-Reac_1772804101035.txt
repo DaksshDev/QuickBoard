@@ -1,0 +1,72 @@
+Build a full-stack web app called QuickBoard using React + Vite + Firebase (Firestore + RTDB + Email Auth).
+Auth flow:
+
+Landing page asks ONLY for a username, nothing else
+Create Firebase account using email: {username}@quickboardhashed.sh and password: sha256(username)
+If account exists = sign in, if not = create new account
+Store in Firestore: users/{uid} with fields: username, usernameHash (sha256 of username)
+Session persists automatically via Firebase Auth
+
+Creating a Clipboard:
+
+Click + button → modal asks for:
+
+Clipboard Name (public, shown in search)
+Clipboard ID (4 chars, alphanumeric, user set or auto generated)
+Auto Generate button for random ID
+
+
+Small hint text: "Clipboard name will be publicly visible in search"
+Store in RTDB: clipboards/{id}/ with: name, createdBy (username), createdByHash, messages: []
+Store in Firestore: clipboards/{id} with name and createdBy for search indexing
+
+Joining a Clipboard:
+
+Search bar with live Firestore suggestions as you type
+Shows clipboard name + creator in dropdown like Google search
+Click suggestion → prompts for 4 char ID to join
+If ID matches → enter clipboard
+
+Clipboard View:
+
+Realtime messages via RTDB
+Each entry shows: content, username, (hash), relative time (just now / 2 mins ago / 3 hours ago)
+Auto detect and highlight links → clickable, opens new tab
+Paste box at bottom, submit on Enter or button click
+
+Settings Page:
+
+Reset app button (clears session, signs out)
+Show your username and hash
+
+Firestore Rules:
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    match /clipboards/{id} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
+RTDB Rules:
+json{
+  "rules": {
+    "clipboards": {
+      "$id": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+UI:
+
+Dark mode only
+Vercel inspired: pure black background, white text, clean minimal
+Smooth transitions, modern feel
+Mobile responsive
+No unnecessary colors except white, gray, and subtle accents
