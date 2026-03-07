@@ -1,12 +1,85 @@
 # Quick-Board
-Simple, secure real-time clipboard sharing.
 
+**Simple, secure real-time pastebin-like clipboard**
 
-## Firebase Security Rules
+Quick-Board is a minimalist web application that lets you instantly share copied info across devices simply by sharing the board ID. Think of it like a simple messaging app but sharing copied info. No complex setup, no bloated features—just fast, secure clipboard syncing.
 
-Copy these into your Firebase Console to ensure the app works correctly and stays secure.
+![Home](screenshots/home.png)
+![Clipboard](screenshots/clipboard.png)
+![Secure](screenshots/secure.png)
+
+---
+
+## ✨ Features
+
+### 🎨 **Minimalist Design**
+- Clean, distraction-free interface
+- Responsive design that works on desktop and mobile
+
+### 🚀 **Easy to Use**
+- Create a clipboard board with any name
+- Share the board ID with other users
+- Start pasting—content syncs automatically
+
+### 🌐 **Cross-Platform**
+- Works in any modern web browser
+- No app installation required
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- A Firebase project ([Create one here](https://console.firebase.google.com/))
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/DaksshDev/QuickBoard.git
+   cd QuickBoard
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Firebase**
+   - Navigate to client/src/lib/.firebase-template
+   - Add your Firebase configuration:
+     ```env
+     REACT_APP_FIREBASE_API_KEY=your_api_key
+     REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+     REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+     REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+     REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+     REACT_APP_FIREBASE_APP_ID=your_app_id
+     ```
+   - Rename the file to firebase.ts and save it!
+
+4. **Set up Firebase Security Rules** (see below)
+
+5. **Run the development server**
+   ```bash
+   npm start
+   ```
+
+6. **Build for production**
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 🔐 Firebase Security Rules
+
+**Important**: Copy these rules into your Firebase Console to ensure the app works correctly and stays secure.
 
 ### Cloud Firestore Rules
+
+Navigate to **Firestore Database → Rules** in your Firebase Console and paste:
 
 ```javascript
 rules_version = '2';
@@ -35,6 +108,8 @@ service cloud.firestore {
 
 ### Realtime Database Rules
 
+Navigate to **Realtime Database → Rules** in your Firebase Console and paste:
+
 ```json
 {
   "rules": {
@@ -57,8 +132,36 @@ service cloud.firestore {
 }
 ```
 
-## Security & Deployment
+---
 
-- **Identity**: Based on deterministic SHA-256 hashes of usernames.
-- **SPA Routing**: Use the included `_redirects` for Netlify.
-- **Console Warning**: A protection script is embedded in `index.html`.
+## 🎯 How It Works
+
+1. **Simple Security and Anonymity**: just enter a username and the app will create a hash of your username to reserve it, making it secure and anonymous.
+
+2. **Real-Time Sync**: Messages are stored in Firebase Realtime Database, providing instant synchronization across all connected devices.
+
+3. **Minimal Permissions**: Security rules ensure only board creators can modify board settings, while any authenticated user with the board name can read and write messages.
+
+---
+
+## 📖 Usage
+
+1. **Sign in** Enter username and start sharing!
+2. **Create or join** a clipboard board by entering a board name or creating a new one!
+3. **Share** the board name with your other users
+4. **Start pasting**—any text you add will show up instantly across all members of the board!
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to:
+- Report bugs
+- Suggest new features
+- Submit pull requests
+
+Please keep the minimalist philosophy in mind—features should be essential and not add complexity.
+
+---
+
+If you liked this repo please give it a star!⭐

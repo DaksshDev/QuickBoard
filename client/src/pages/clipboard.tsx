@@ -170,7 +170,7 @@ export default function ClipboardView() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleLeave}
+              onClick={() => setIsLeaveModalOpen(true)}
               className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="w-5 h-5" />
