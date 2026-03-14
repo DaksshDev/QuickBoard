@@ -12,6 +12,10 @@ Quick-Board is a minimalist web application that lets you instantly share copied
 
 ## ✨ Features
 
+### ⬆️ **NEW: Files and image uploading feature!**
+- Allows you to send any image or file to the clipboard
+- uses cloudinary to do so
+
 ### 🎨 **Minimalist Design**
 - Clean, distraction-free interface
 - Responsive design that works on desktop and mobile
@@ -61,12 +65,14 @@ Quick-Board is a minimalist web application that lets you instantly share copied
 
 4. **Set up Firebase Security Rules** (see below)
 
-5. **Run the development server**
+5. **Set up Cloudinary** (see below)
+
+6. **Run the development server**
    ```bash
    npm start
    ```
 
-6. **Build for production**
+7. **Build for production**
    ```bash
    npm run build
    ```

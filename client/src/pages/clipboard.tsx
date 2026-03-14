@@ -4,11 +4,12 @@ import { Nav } from "@/components/nav";
 import { useClipboardMeta } from "@/hooks/use-clipboards";
 import { useMessages } from "@/hooks/use-messages";
 import { MessageBubble } from "@/components/message-bubble";
-import { Loader2, Send, AlertTriangle, Hash, Copy, Check, Code } from "lucide-react";
+import { Loader2, Send, AlertTriangle, Hash, Copy, Check, Code, Image as ImageIcon, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, Users, BookOpen, ExternalLink } from "lucide-react";
+import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { 
   Dialog, 
   DialogContent, 
@@ -40,6 +41,91 @@ export default function ClipboardView() {
   const [profileData, setProfileData] = useState<{username: string, ownedBoards: string[]} | null>(null);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processFile = async (file: File) => {
+    // Check file size (500MB = 500 * 1024 * 1024 bytes)
+    const MAX_SIZE_BYTES = 500 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      toast({ 
+        title: "File too large", 
+        description: "Maximum file size allowed is 500MB.", 
+        variant: "destructive" 
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    
+    const isLargeFile = file.size > 10 * 1024 * 1024; // > 10MB
+    
+    try {
+      setIsUploading(true);
+      if (isLargeFile) {
+        setUploadProgress(0);
+        setShowUploadModal(true);
+      } else {
+        toast({ title: "Uploading file...", description: "Please wait..." });
+      }
+      
+      const uploadResult = await uploadImageToCloudinary(file, undefined, (progress) => {
+        if (isLargeFile) {
+          setUploadProgress(progress);
+        }
+      });
+      
+      const fileData = {
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        url: uploadResult.url, 
+        publicId: uploadResult.publicId,
+        resourceType: uploadResult.resourceType
+      };
+      
+      const textToInclude = content.trim();
+      setContent(""); // optimistically clear text input
+      await sendMessage(textToInclude, fileData);
+      toast({ title: "File sent!" });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      setShowUploadModal(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+  };
 
   const wrapSelectionInCode = () => {
     if (!textareaRef.current) return;
@@ -146,7 +232,23 @@ export default function ClipboardView() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div 
+      className="min-h-screen flex flex-col bg-background relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-white/20 rounded-xl m-4 pointer-events-none">
+          <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center mb-6 animate-bounce">
+            <Paperclip className="w-10 h-10 text-white/50" />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-2">Drop it here!</h2>
+          <p className="text-white/60">Release to instantly upload and share.</p>
+        </div>
+      )}
+      
       <Nav />
       
       {/* Header Info */}
@@ -274,6 +376,37 @@ export default function ClipboardView() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Uploading Progress Modal for Large Files */}
+      <Dialog open={showUploadModal} onOpenChange={(open) => {
+        // Prevent closing by clicking outside during upload
+        if (!open && isUploading) return;
+        setShowUploadModal(open);
+      }}>
+        <DialogContent className="bg-[#0a0a0a] border-white/10 text-white sm:max-w-md" onInteractOutside={(e) => isUploading && e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+              Uploading File...
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground pt-2">
+              Please don't refresh the page. Large files can take a moment to upload securely.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-white/80 font-medium">Progress</span>
+              <span className="text-white font-mono">{uploadProgress}%</span>
+            </div>
+            <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300 ease-out" 
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Messages Area */}
       <div className="flex-1 p-4 sm:p-6">
@@ -329,6 +462,23 @@ export default function ClipboardView() {
             >
               <Code className="w-4 h-4" />
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload file"
+              disabled={isUploading}
+              className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-white/10"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
           </div>
           
           <form 

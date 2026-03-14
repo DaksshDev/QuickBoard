@@ -8,6 +8,12 @@ export interface Message {
   content: string;
   senderHash: string;
   timestamp: number;
+  fileUrl?: string;     // Generic URL for any file including images
+  fileName?: string;
+  fileType?: string;    // 'image/jpeg', 'video/mp4', 'application/pdf', etc.
+  fileSize?: number;    // Size in bytes
+  filePublicId?: string;
+  fileResourceType?: string;
 }
 
 export function useMessages(clipboardId: string) {
@@ -45,21 +51,46 @@ export function useMessages(clipboardId: string) {
     };
   }, [clipboardId]);
 
-  const sendMessage = async (content: string) => {
-    if (!isFirebaseConfigured || !user || !clipboardId || !content.trim()) return;
+  const sendMessage = async (
+    content: string, 
+    fileData?: { url: string; name: string; type: string; size: number, publicId: string, resourceType: string }
+  ) => {
+    if (!isFirebaseConfigured || !user || !clipboardId || (!content.trim() && !fileData)) return;
 
     const messagesRef = ref(rtdb, `clipboards/${clipboardId}/messages`);
     const newMsgRef = push(messagesRef);
 
-    await set(newMsgRef, {
+    const payload: Omit<Message, 'id'> = {
       content: content.trim(),
       senderHash: user.uid,
-      timestamp: serverTimestamp()
-    });
+      timestamp: serverTimestamp() as any
+    };
+
+    if (fileData) {
+      payload.fileUrl = fileData.url;
+      payload.fileName = fileData.name;
+      payload.fileType = fileData.type;
+      payload.fileSize = fileData.size;
+      payload.filePublicId = fileData.publicId;
+      payload.fileResourceType = fileData.resourceType;
+    }
+
+    await set(newMsgRef, payload);
   };
 
   const deleteMessage = async (messageId: string) => {
     if (!isFirebaseConfigured || !user || !clipboardId) return;
+    
+    const msgToDelete = messages.find(m => m.id === messageId);
+    if (msgToDelete?.filePublicId && msgToDelete?.fileResourceType) {
+      try {
+        const { deleteImageFromCloudinary } = await import('@/lib/cloudinary');
+        await deleteImageFromCloudinary(msgToDelete.filePublicId, msgToDelete.fileResourceType);
+      } catch (err) {
+        console.error("Failed to delete Cloudinary asset:", err);
+      }
+    }
+
     const msgRef = ref(rtdb, `clipboards/${clipboardId}/messages/${messageId}`);
     await remove(msgRef);
   };

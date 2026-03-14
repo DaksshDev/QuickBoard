@@ -5,7 +5,7 @@ import { Message } from "@/hooks/use-messages";
 import { useAuthContext } from "@/hooks/use-auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Copy, Check, Trash2 } from "lucide-react";
+import { Copy, Check, Trash2, Download, FileText, FileAudio, FileVideo, FileArchive, File as FileIcon } from "lucide-react";
 
 // CodeBlock component with its own copy button
 const CodeBlock = ({ code }: { code: string }) => {
@@ -159,10 +159,78 @@ export function MessageBubble({
       
       <div className="px-1 text-white/90 relative flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <div className="relative">
-            <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-              {formatMessageText(message.content)}
-            </p>
+          <div className="relative group/file">
+            {message.content && (
+              <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap mb-2">
+                {formatMessageText(message.content)}
+              </p>
+            )}
+            {message.fileUrl && (
+               <div className="mb-2 max-w-sm relative">
+                  {message.fileType?.startsWith('image/') ? (
+                    <div className="rounded-lg overflow-hidden border border-white/10 bg-black/40">
+                      <img 
+                        src={message.fileUrl} 
+                        alt={message.fileName || "Uploaded image"} 
+                        className="w-full h-auto object-contain"
+                        loading="lazy"
+                      />
+                    </div>
+                  ) : message.fileType?.startsWith('video/') ? (
+                    <div className="rounded-lg overflow-hidden border border-white/10 bg-black/40">
+                      <video 
+                        src={message.fileUrl} 
+                        controls
+                        className="w-full h-auto"
+                        title={message.fileName}
+                      />
+                    </div>
+                  ) : message.fileType?.startsWith('audio/') ? (
+                    <div className="rounded-lg p-3 border border-white/10 bg-[#1a1a1a]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileAudio className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-medium truncate text-white/90">{message.fileName}</span>
+                      </div>
+                      <audio src={message.fileUrl} controls className="w-full h-8" />
+                    </div>
+                  ) : (
+                    <div className="rounded-lg p-3 border border-white/10 bg-[#1a1a1a] flex items-center gap-3">
+                      <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center shrink-0">
+                        {message.fileType?.includes('pdf') ? <FileText className="w-5 h-5 text-red-400" /> :
+                         message.fileType?.includes('zip') || message.fileType?.includes('tar') || message.fileType?.includes('rar') ? <FileArchive className="w-5 h-5 text-yellow-400" /> :
+                         <FileIcon className="w-5 h-5 text-blue-400" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-white/90 truncate">{message.fileName || 'Attached File'}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {message.fileSize ? 
+                             (message.fileSize < 1024 * 1024 ? 
+                               (message.fileSize / 1024).toFixed(1) + ' KB' : 
+                               (message.fileSize / (1024 * 1024)).toFixed(2) + ' MB'
+                             ) : 
+                             'Unknown size'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Download overlay button */}
+                  <a 
+                    href={message.fileUrl} 
+                    download={message.fileName || 'download'} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      // Attempt to force download instead of opening in a new tab if it's a same-origin or CORS-enabled resource
+                      e.stopPropagation();
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-md bg-black/60 text-white/90 opacity-0 group-hover/file:opacity-100 transition-opacity hover:bg-black/80 hover:text-white border border-white/10 backdrop-blur-sm shadow-sm z-10"
+                    title="Download file"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+               </div>
+            )}
             
             {/* Actions & Timestamp */}
             <div className="absolute -right-2 -top-1 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-1 group-hover:translate-x-0 z-10">
