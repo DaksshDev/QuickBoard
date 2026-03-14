@@ -65,8 +65,16 @@ Quick-Board is a minimalist web application that lets you instantly share copied
 
 4. **Set up Firebase Security Rules** (see below)
 
-5. **Set up Cloudinary** (see below)
-
+5. **Configure Cloudinary** (For file uploads)
+   - Navigate to `client/src/lib/.cloudinary-template`
+   - Add your Cloudinary API credentials:
+     ```typescript
+     export const CLOUDINARY_API_KEY = "your_api_key";
+     export const CLOUDINARY_API_SECRET = "your_api_secret";
+     export const CLOUDINARY_CLOUD_NAME = "your_cloud_name";
+     ```
+   - Rename the file to `cloudinary.ts` and save it!
+   
 6. **Run the development server**
    ```bash
    npm start
