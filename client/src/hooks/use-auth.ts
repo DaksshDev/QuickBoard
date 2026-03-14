@@ -219,7 +219,14 @@ export function useAuthInit(): AuthContextType {
     const newEmail = `${formatted}@quickboardhashed.sh`;
 
     // 1. Update Email in Auth first (this keeps things deterministic)
-    await updateEmail(auth.currentUser, newEmail);
+    try {
+      await updateEmail(auth.currentUser, newEmail);
+    } catch (error: any) {
+      if (error.message?.toLowerCase().includes('verify') || error.code?.includes('verify') || error.code === 'auth/operation-not-allowed') {
+        throw new Error("Firebase Security Block! You MUST uncheck 'Email enumeration protection (recommended)' in your Firebase Console -> Authentication -> Settings -> User Actions to allow username changes.");
+      }
+      throw error;
+    }
 
     // 2. Update Firestore
     await setDoc(doc(db, 'users', auth.currentUser.uid), {

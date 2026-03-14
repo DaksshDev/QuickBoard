@@ -61,7 +61,9 @@ Quick-Board is a minimalist web application that lets you instantly share copied
      REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
      REACT_APP_FIREBASE_APP_ID=your_app_id
      ```
-   - Rename the file to firebase.ts and save it!
+   - Rename the file to `firebase.ts` and save it!
+
+   > **IMPORTANT**: Go to Firebase Console -> Authentication -> Settings -> User Actions. **Uncheck "Email enumeration protection (recommended)"**. Quick-Board requires this to allow users to change their usernames seamlessly without email verification (since usernames are hashed into fake emails internally).
 
 4. **Set up Firebase Security Rules** (see below)
 

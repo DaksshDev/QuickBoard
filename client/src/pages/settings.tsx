@@ -19,8 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 export default function Settings() {
-  const { user, deleteAccount, updateUsername } = useAuthContext();
-  const [newUsername, setNewUsername] = useState("");
+  const { user, deleteAccount } = useAuthContext();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
